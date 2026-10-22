@@ -1,15 +1,14 @@
 import time
+from itertools import zip_longest
 
 
 class Nodo:
-    """Nodo de una lista enlazada simple."""
     def __init__(self, dato):
         self.dato = dato
         self.siguiente = None
 
 
 class Cola:
-    """Cola (FIFO) con nodos enlazados. encolar y desencolar son O(1)."""
 
     def __init__(self):
         self._frente = None
@@ -38,125 +37,84 @@ class Cola:
     def esta_vacia(self):
         return self._tamano == 0
 
-    def tamano(self):
-        return self._tamano
-
     def __iter__(self):
-        """Recorre la cola sin modificarla."""
         actual = self._frente
         while actual:
             yield actual.dato
             actual = actual.siguiente
 
-    def __str__(self):
-        return "[" + ", ".join(str(x) for x in self) + "]"
 
-
-# Servicios de la compañía de seguros: número -> (nombre, prefijo del ticket)
-SERVICIOS = {
-    1: ("Siniestros", "S"),
-    2: ("Pólizas nuevas", "P"),
-    3: ("Pagos", "G"),
-    4: ("Reclamos", "R"),
-}
-
-
-class SistemaAtencion:
-    """Maneja una Cola por cada servicio."""
-
-    def __init__(self, servicios):
-        self.servicios = servicios
-        self.colas = {n: Cola() for n in servicios}
-        self.contador = {n: 0 for n in servicios}  # último número entregado
-
-    def llega_cliente(self, servicio):
-        """C: entrega el número de atención que corresponde y lo encola."""
-        self.contador[servicio] += 1
-        prefijo = self.servicios[servicio][1]
-        ticket = f"{prefijo}-{self.contador[servicio]:03d}"
-        self.colas[servicio].encolar(ticket)
-        return ticket
-
-    def atender(self, servicio):
-        """A: llama al siguiente cliente de la cola. None si no hay nadie."""
-        cola = self.colas[servicio]
-        return None if cola.esta_vacia() else cola.desencolar()
-
-
-def mostrar_ayuda():
-    print("\n===== SISTEMA DE ATENCIÓN - COMPAÑÍA DE SEGUROS =====")
-    print("Servicios:")
-    for n, (nombre, _) in SERVICIOS.items():
-        print(f"  {n} - {nombre}")
-    print("\nComandos:")
-    print("  C <servicio>  Llega un cliente (ej: C 1)")
-    print("  A <servicio>  Atender al siguiente cliente (ej: A 1)")
-    print("  E             Ver estado de las colas")
-    print("  S             Salir")
-
-
-def interpretar(texto):
-    """Convierte 'C 1' o 'C1' en ('C', 1). Devuelve None si es inválido."""
-    texto = texto.replace(" ", "").upper()
-    if len(texto) < 2 or texto[0] not in ("C", "A") or not texto[1:].isdigit():
-        return None
-    servicio = int(texto[1:])
-    return (texto[0], servicio) if servicio in SERVICIOS else None
-
-
-def main():
-    sistema = SistemaAtencion(SERVICIOS)
-    inicio_programa = time.perf_counter()
-    tiempo_procesando = 0.0  # suma del tiempo que tarda el sistema en responder
-    operaciones = 0
-
-    mostrar_ayuda()
+def sumar_colas(cola_a, cola_b):
+    resultado = Cola()
+    a, b = iter(cola_a), iter(cola_b)
     while True:
-        entrada = input("\n> ").strip()
-        if not entrada:
-            continue
-        if entrada.upper() == "S":
+        x = next(a, None)
+        y = next(b, None)
+        if x is None and y is None:
             break
-        if entrada.upper() == "E":
-            print("Estado de las colas:")
-            for n, (nombre, _) in SERVICIOS.items():
-                print(f"  {nombre}: {sistema.colas[n]}")
+        resultado.encolar((x or 0) + (y or 0))
+    return resultado
+
+
+def cola_desde_lista(lista):
+    c = Cola()
+    for n in lista:
+        c.encolar(n)
+    return c
+
+
+def leer_cola(nombre):
+    while True:
+        texto = input(f"Ingrese los números de la {nombre} separados por espacios: ")
+        try:
+            numeros = [int(t) for t in texto.split()]
+        except ValueError:
+            print("  Error: solo se permiten números enteros.")
             continue
-
-        orden = interpretar(entrada)
-        if orden is None:
-            print("Entrada inválida. Use C o A seguida del número de servicio.")
-            mostrar_ayuda()
+        if not numeros:
+            print("  Error: la cola no puede estar vacía.")
             continue
+        return cola_desde_lista(numeros)
 
-        comando, servicio = orden
-        nombre = SERVICIOS[servicio][0]
 
-        inicio_op = time.perf_counter()
-        if comando == "C":
-            resultado = sistema.llega_cliente(servicio)
+def mostrar_resultado(cola_a, cola_b):
+    inicio_programa = time.perf_counter()
+
+    inicio_suma = time.perf_counter()
+    res = sumar_colas(cola_a, cola_b)
+    fin_suma = time.perf_counter()
+
+    print(f"\n{'Cola A':<8}{'Cola B':<8}{'Resultado'}")
+    for x, y, r in zip_longest(cola_a, cola_b, res, fillvalue="-"):
+        print(f"{x:<8}{y:<8}{r}")
+
+    fin_programa = time.perf_counter()
+    print(f"\nTiempo de sumar_colas:      {(fin_suma - inicio_suma) * 1000:.6f} ms")
+    print(f"Tiempo total de ejecución:  {(fin_programa - inicio_programa) * 1000:.6f} ms")
+
+
+def menu():
+    while True:
+        print("\n===== SUMA DE COLAS =====")
+        print("1. Ver ejemplo del enunciado")
+        print("2. Crear mis propias colas")
+        print("3. Salir")
+        opcion = input("Elija una opción: ").strip()
+
+        if opcion == "1":
+            cola_a = cola_desde_lista([3, 4, 2, 8, 12])
+            cola_b = cola_desde_lista([6, 2, 9, 11, 3])
+            mostrar_resultado(cola_a, cola_b)
+        elif opcion == "2":
+            cola_a = leer_cola("Cola A")
+            cola_b = leer_cola("Cola B")
+            mostrar_resultado(cola_a, cola_b)
+        elif opcion == "3":
+            print("Fin del programa.")
+            break
         else:
-            resultado = sistema.atender(servicio)
-        duracion = time.perf_counter() - inicio_op
-
-        tiempo_procesando += duracion
-        operaciones += 1
-
-        if comando == "C":
-            print(f"Su número de atención para {nombre} es: {resultado}")
-        elif resultado:
-            print(f"Llamando al número {resultado} ({nombre})")
-        else:
-            print(f"No hay clientes en espera en {nombre}.")
-        print(f"Tiempo de la operación: {duracion * 1000:.6f} ms")
-
-    total = time.perf_counter() - inicio_programa
-    print("\n===== RESUMEN DE EJECUCIÓN =====")
-    print(f"Operaciones realizadas:                {operaciones}")
-    print(f"Tiempo de procesamiento del sistema:   {tiempo_procesando * 1000:.6f} ms")
-    print(f"Tiempo total de ejecución del programa: {total:.2f} s")
-    print("Fin de la simulación.")
+            print("Opción inválida, intente de nuevo.")
 
 
 if __name__ == "__main__":
-    main()
+    menu()
